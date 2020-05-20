@@ -1,7 +1,8 @@
+// NOTE: Not sure if I need it
+
 import Vapor
 import Graphiti
 import GraphQL
-
 
 public typealias SimpleAsyncResolve<ObjectType, Context, Arguments, ResolveType> = (
     _ object: ObjectType
@@ -9,6 +10,14 @@ public typealias SimpleAsyncResolve<ObjectType, Context, Arguments, ResolveType>
     _ context: Context,
     _ arguments: Arguments
 ) throws -> EventLoopFuture<ResolveType>
+
+public struct StaticFieldKeyProviderType<Wrapped: FieldKeyProvider>: FieldKeyProvider {
+    public typealias FieldKey = Wrapped.FieldKey
+}
+
+extension FieldKeyProvider {
+    public static func eraseToAnyFieldKeyProviderType() -> StaticFieldKeyProviderType<Self> { .init() }
+}
 
 extension Graphiti.Field {
     convenience public init(
@@ -51,5 +60,51 @@ extension Graphiti.Field where Arguments == NoArguments {
         overridingType: FieldType.Type = FieldType.self
     )  {
         self.init(name: name.rawValue, at: function)
+    }
+}
+
+extension QLType {
+    public static func named(
+        _ type: ObjectType.Type,
+        fields components: [ObjectTypeComponent<ObjectType, ObjectType.FieldKey, Context>]
+    ) -> QLType<Root, Context , ObjectType> { .init(type, name: String(describing: type), fields: components) }
+}
+
+func _QLType<Root: FieldKeyProvider, Context, ObjectType: Encodable & FieldKeyProvider>(
+    _ type: ObjectType.Type,
+    fields components: [ObjectTypeComponent<ObjectType, ObjectType.FieldKey, Context>]
+) -> QLType<Root, Context, ObjectType> { .named(type, fields: components) }
+
+func wrap<ObjectType, Context, Arguments, ResolveType>(
+    _ function: @escaping (
+        _ context: Context,
+        _ arguments: Arguments
+    ) throws -> EventLoopFuture<ResolveType>
+) -> AsyncResolve<ObjectType, Context, Arguments, ResolveType> {
+    { _ in { ctx, args, elg in try function(ctx, args) } }
+}
+
+extension QLField where FieldType == ResolveType {
+    public convenience init<T: FieldKeyProvider>(
+        _ name: FieldKey,
+        at function: @escaping (
+            _ context: Context,
+            _ arguments: Arguments
+        ) throws -> EventLoopFuture<ResolveType>
+    ) where ObjectType == StaticFieldKeyProviderType<T> {
+        self.init(name, at: wrap(function))
+    }
+}
+
+extension QLField where FieldType == ResolveType {
+    public convenience init<T: FieldKeyProvider>(
+        _ type: T.Type,
+        _ name: FieldKey,
+        builder: (T.Type) ->  (
+            _ context: Context,
+            _ arguments: Arguments
+        ) throws -> EventLoopFuture<ResolveType>
+    ) where ObjectType == StaticFieldKeyProviderType<T> {
+        self.init(name, at: builder(type))
     }
 }

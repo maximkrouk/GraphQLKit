@@ -1,4 +1,5 @@
 import Vapor
+import GraphQL
 import Graphiti
 
 extension Request {
