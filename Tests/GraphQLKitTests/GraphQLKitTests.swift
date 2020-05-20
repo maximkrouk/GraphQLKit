@@ -26,21 +26,23 @@ final class GraphQLKitTests: XCTestCase {
         }
     }
     
-    struct ProtectedResolver: FieldKeyProvider {
+    typealias ProtectedResolverAPI = StaticFieldKeyProviderType<ProtectedResolver>
+    enum ProtectedResolver: FieldKeyProvider {
         typealias FieldKey = FieldKeys
 
         enum FieldKeys: String {
             case test
             case number
         }
-        func test(store: Request, _: NoArguments) throws -> String {
-            _ = try store.auth.require(SomeBearerAuthenticator.User.self)
-            return "Hello World"
+        
+        static func test(_ req: Request, _: NoArguments) throws -> EventLoopFuture<String> {
+            _ = try req.auth.require(SomeBearerAuthenticator.User.self)
+            return req.eventLoop.makeSucceededFuture("Hello World")
         }
 
-        func number(store: Request, _: NoArguments) throws -> Int {
-            _ = try store.auth.require(SomeBearerAuthenticator.User.self)
-            return 42
+        static func number(_ req: Request, _: NoArguments) throws -> EventLoopFuture<Int> {
+            _ = try req.auth.require(SomeBearerAuthenticator.User.self)
+            return req.eventLoop.makeSucceededFuture(42)
         }
     }
     
@@ -60,17 +62,17 @@ final class GraphQLKitTests: XCTestCase {
         }
     }
     
-    let protectedSchema = Schema<ProtectedResolver, Request>([
-        Query([
-            Field(.test, at: ProtectedResolver.test),
-            Field(.number, at: ProtectedResolver.number)
+    let protectedSchema = QLSchema<ProtectedResolverAPI, Request>([
+        QLQuery([
+            QLField(ProtectedResolver.self, .test) { $0.test },
+            QLField(ProtectedResolver.self, .number) { $0.number }
         ])
     ])
 
-    let schema = Schema<Resolver, Request>([
-        Query([
-            Field(.test, at: Resolver.test),
-            Field(.number, at: Resolver.number)
+    let schema = QLSchema<Resolver, Request>([
+        QLQuery([
+            QLField(.test, at: Resolver.test),
+            QLField(.number, at: Resolver.number)
         ])
     ])
     
@@ -86,8 +88,8 @@ final class GraphQLKitTests: XCTestCase {
 
         let app = Application(.testing)
         defer { app.shutdown() }
-
-        app.register(graphQLSchema: schema, withResolver: Resolver())
+        
+        app.graphQL("graphql", schema: schema, use: Resolver())
 
         var body = ByteBufferAllocator().buffer(capacity: 0)
         body.writeString(data)
@@ -104,8 +106,8 @@ final class GraphQLKitTests: XCTestCase {
     func testGetEndpoint() throws {
         let app = Application(.testing)
         defer { app.shutdown() }
-
-        app.register(graphQLSchema: schema, withResolver: Resolver())
+        
+        app.graphQL("graphql", schema: schema, use: Resolver())
         try app.testable().test(.GET, "/graphql?query=\(query.addingPercentEncoding(withAllowedCharacters: .alphanumerics)!)") { res in
             XCTAssertEqual(res.status, .ok)
             XCTAssertEqual(res.body.description, #"{"data":{"test":"Hello World"}}"#)
@@ -127,9 +129,8 @@ final class GraphQLKitTests: XCTestCase {
 
         let app = Application(.testing)
         defer { app.shutdown() }
-
-        app.register(graphQLSchema: schema, withResolver: Resolver())
-
+        
+        app.graphQL("graphql", schema: schema, use: Resolver())
         var body = ByteBufferAllocator().buffer(capacity: 0)
         body.writeString(data)
         var headers = HTTPHeaders()
@@ -150,7 +151,7 @@ final class GraphQLKitTests: XCTestCase {
         defer { app.shutdown() }
 
         let protected = app.grouped(SomeBearerAuthenticator().middleware())
-        protected.register(graphQLSchema: protectedSchema, withResolver: ProtectedResolver())
+        protected.graphQL("graphql", schema: protectedSchema, use: ProtectedResolverAPI())
 
         var body = ByteBufferAllocator().buffer(capacity: 0)
         body.writeString(data)
@@ -176,7 +177,7 @@ final class GraphQLKitTests: XCTestCase {
         defer { app.shutdown() }
         
         let protected = app.grouped(SomeBearerAuthenticator().middleware())
-        protected.register(graphQLSchema: protectedSchema, withResolver: ProtectedResolver())
+        protected.graphQL("graphql", schema: protectedSchema, use: ProtectedResolver.eraseToAnyFieldKeyProviderType())
         
         var headers = HTTPHeaders()
         headers.replaceOrAdd(name: .authorization, value: "Bearer token")
@@ -208,7 +209,7 @@ final class GraphQLKitTests: XCTestCase {
         defer { app.shutdown() }
 
         let protected = app.grouped(SomeBearerAuthenticator().middleware())
-        protected.register(graphQLSchema: protectedSchema, withResolver: ProtectedResolver())
+        protected.graphQL("graphql", schema: protectedSchema, use: ProtectedResolverAPI())
 
         var body = ByteBufferAllocator().buffer(capacity: 0)
         body.writeString(data)
