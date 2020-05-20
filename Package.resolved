@@ -39,11 +39,11 @@
       },
       {
         "package": "Graphiti",
-        "repositoryURL": "https://github.com/alexsteinerde/Graphiti.git",
+        "repositoryURL": "https://github.com/maximkrouk/Graphiti.git",
         "state": {
-          "branch": null,
-          "revision": "fd61913593ea49c85bbe74af152cb123fe7998e8",
-          "version": "0.13.0-beta.1"
+          "branch": "mx",
+          "revision": "2e8282871eca24d8dfc6c621f23e5745172abedf",
+          "version": null
         }
       },
       {
