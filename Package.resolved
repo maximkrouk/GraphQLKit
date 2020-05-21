@@ -41,18 +41,18 @@
         "package": "Graphiti",
         "repositoryURL": "https://github.com/maximkrouk/Graphiti.git",
         "state": {
-          "branch": "mx",
-          "revision": "8e6c6d85b73e2bcd2c1fa789c430d128ee10d888",
-          "version": null
+          "branch": null,
+          "revision": "2ca9b5901616c79ceac333c89ad18a238e6cb039",
+          "version": "1.0.0-beta.1.0"
         }
       },
       {
         "package": "GraphQL",
         "repositoryURL": "https://github.com/maximkrouk/GraphQL.git",
         "state": {
-          "branch": "mx",
-          "revision": "177903416e079edacc53f7aebb73dd064467a546",
-          "version": null
+          "branch": null,
+          "revision": "0824bf044c694f8adc6582751a2ad2b0f537dabd",
+          "version": "1.0.0-beta.1.0"
         }
       },
       {

@@ -28,7 +28,7 @@ final class GraphQLKitTests: XCTestCase {
         
     }
     
-    typealias ProtectedAPIProvider = StaticFieldKeyProviderType<ProtectedResolver>
+    typealias ProtectedAPIProvider = QLResolverProvider<ProtectedResolver>
     enum ProtectedResolver: FieldKeyProvider {
         typealias FieldKey = FieldKeys
 

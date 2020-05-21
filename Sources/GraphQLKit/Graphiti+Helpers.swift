@@ -10,13 +10,13 @@ public typealias SimpleAsyncResolve<ObjectType, Context, Arguments, ResolveType>
     _ arguments: Arguments
 ) throws -> EventLoopFuture<ResolveType>
 
-public struct StaticFieldKeyProviderType<Wrapped: FieldKeyProvider>: FieldKeyProvider {
+public struct QLResolverProvider<Wrapped: FieldKeyProvider>: FieldKeyProvider {
     public typealias FieldKey = Wrapped.FieldKey
     public init() {}
 }
 
 extension FieldKeyProvider {
-    public static func eraseToAnyFieldKeyProviderType() -> StaticFieldKeyProviderType<Self> { .init() }
+    public static func containerize() -> QLResolverProvider<Self> { .init() }
 }
 
 extension Graphiti.QLField {
@@ -93,7 +93,7 @@ extension QLField where FieldType == ResolveType {
             _ context: Context,
             _ arguments: Arguments
         ) throws -> EventLoopFuture<ResolveType>
-    ) where ObjectType == StaticFieldKeyProviderType<T> {
+    ) where ObjectType == QLResolverProvider<T> {
         self.init(name, at: wrap(function))
     }
 }
@@ -106,7 +106,7 @@ extension QLField where FieldType == ResolveType {
             _ context: Context,
             _ arguments: Arguments
         ) throws -> EventLoopFuture<ResolveType>
-    ) where ObjectType == StaticFieldKeyProviderType<T> {
+    ) where ObjectType == QLResolverProvider<T> {
         self.init(name, at: builder(type))
     }
 }
