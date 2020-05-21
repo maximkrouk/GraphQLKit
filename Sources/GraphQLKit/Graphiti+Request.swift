@@ -1,39 +1,51 @@
 import Vapor
 import GraphQL
-import Graphiti
 
 extension Request {
-    func resolveByBody<RootType: FieldKeyProvider>(graphQLSchema schema: Schema<RootType, Request>, with rootAPI: RootType) throws -> Future<String> {
+    func resolveByBody<Resolver: FieldKeyProvider>(
+        graphQLSchema schema: QLSchema<Resolver, Request>,
+        with resolver: Resolver
+    ) throws -> Future<String> {
         let queryRequest = try self.content
             .decode(QueryRequest.self)
-        return self.resolve(byQueryRequest: queryRequest, graphQLSchema: schema, with: rootAPI)
+        return self.resolve(
+            queryRequest,
+            schema: schema,
+            with: resolver
+        )
     }
 
-    func resolveByQueryParameters<RootType: FieldKeyProvider>(graphQLSchema schema: Schema<RootType, Request>, with rootAPI: RootType) throws -> Future<String> {
+    func resolveByQueryParameters<Resolver: FieldKeyProvider>(
+        graphQLSchema schema: QLSchema<Resolver, Request>,
+        with resolver: Resolver
+    ) throws -> Future<String> {
         guard let queryString = self.query[String.self, at: "query"] else { throw GraphQLError(GraphQLResolveError.noQueryFound) }
         let variables = self.query[String.self, at: "variables"].flatMap {
             $0.data(using: .utf8).flatMap { (data) -> [String: Map]? in
                 let decoder = JSONDecoder()
-                if #available(OSX 10.12, *) {
-                    decoder.dateDecodingStrategy = .iso8601
-                }
+                decoder.dateDecodingStrategy = .iso8601
                 return try? decoder.decode([String: Map]?.self, from: data)
             }
         }
 
         let operationName = self.query[String.self, at: "operationName"]
-        let data = QueryRequest(query: queryString, operationName: operationName, variables: variables)
-        return resolve(byQueryRequest: data, graphQLSchema: schema, with: rootAPI)
+        let queryRequest = QueryRequest(query: queryString, operationName: operationName, variables: variables)
+        return resolve(queryRequest, schema: schema, with: resolver)
     }
 
-    private func resolve<RootType: FieldKeyProvider>(byQueryRequest data: QueryRequest, graphQLSchema schema: Schema<RootType, Request>, with rootAPI: RootType) -> Future<String> {
+    private func resolve<Resolver: FieldKeyProvider>(
+        _ request: QueryRequest,
+        schema: QLSchema<Resolver, Request>,
+        with resolver: Resolver
+    ) -> Future<String> {
         schema.execute(
-            request: data.query,
-            root: rootAPI,
+            request: request.query,
+            resolver: resolver,
             context: self,
             eventLoopGroup: self.eventLoop,
-            variables: data.variables ?? [:],
-            operationName: data.operationName)
+            variables: request.variables ?? [:],
+            operationName: request.operationName
+        )
         .map({ $0.description })
     }
 }

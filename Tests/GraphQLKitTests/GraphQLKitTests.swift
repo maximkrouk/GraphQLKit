@@ -3,30 +3,32 @@ import Vapor
 import XCTVapor
 @testable import GraphQLKit
 
+extension ByteBuffer {
+    
+    var content: String {
+        var copy = self
+        let data = copy.readData(length: copy.readableBytes) ?? Data()
+        return String(data: data, encoding: .utf8) ?? ""
+    }
+    
+}
+
 final class GraphQLKitTests: XCTestCase {
     struct SomeBearerAuthenticator: BearerAuthenticator {
         struct User: Authenticatable {}
         
-        func authenticate(bearer: BearerAuthorization, for request: Request) -> EventLoopFuture<User?> {
+        func authenticate(bearer: BearerAuthorization, for request: Request) -> EventLoopFuture<Void> {
             // Bearer token should be equal to `token` to pass the auth
             if bearer.token == "token" {
-                return request.eventLoop.makeSucceededFuture(User())
+                return request.eventLoop.makeSucceededFuture(())
             } else {
                 return request.eventLoop.makeFailedFuture(Abort(.unauthorized))
             }
         }
         
-        func authenticate(request: Request) -> EventLoopFuture<User?> {
-            // Bearer token should be equal to `token` to pass the auth
-            if request.headers.bearerAuthorization?.token == "token" {
-                return request.eventLoop.makeSucceededFuture(User())
-            } else {
-                return request.eventLoop.makeFailedFuture(Abort(.unauthorized))
-            }
-        }
     }
     
-    typealias ProtectedResolverAPI = StaticFieldKeyProviderType<ProtectedResolver>
+    typealias ProtectedAPIProvider = StaticFieldKeyProviderType<ProtectedResolver>
     enum ProtectedResolver: FieldKeyProvider {
         typealias FieldKey = FieldKeys
 
@@ -62,7 +64,7 @@ final class GraphQLKitTests: XCTestCase {
         }
     }
     
-    let protectedSchema = QLSchema<ProtectedResolverAPI, Request>([
+    let protectedSchema = QLSchema<ProtectedAPIProvider, Request>([
         QLQuery([
             QLField(ProtectedResolver.self, .test) { $0.test },
             QLField(ProtectedResolver.self, .number) { $0.number }
@@ -99,7 +101,7 @@ final class GraphQLKitTests: XCTestCase {
 
         try app.testable().test(.POST, "/graphql", headers: headers, body: body) { res in
             XCTAssertEqual(res.status, .ok)
-            XCTAssertEqual(res.body.description, #"{"data":{"test":"Hello World"}}"#)
+            XCTAssertEqual(res.body.content, #"{"data":{"test":"Hello World"}}"#)
         }
     }
 
@@ -110,7 +112,7 @@ final class GraphQLKitTests: XCTestCase {
         app.graphQL("graphql", schema: schema, use: Resolver())
         try app.testable().test(.GET, "/graphql?query=\(query.addingPercentEncoding(withAllowedCharacters: .alphanumerics)!)") { res in
             XCTAssertEqual(res.status, .ok)
-            XCTAssertEqual(res.body.description, #"{"data":{"test":"Hello World"}}"#)
+            XCTAssertEqual(res.body.content, #"{"data":{"test":"Hello World"}}"#)
         }
     }
     
@@ -139,7 +141,7 @@ final class GraphQLKitTests: XCTestCase {
 
         try app.testable().test(.POST, "/graphql", headers: headers, body: body) { res in
             XCTAssertEqual(res.status, .ok)
-            XCTAssertEqual(res.body.description, #"{"data":{"number":42}}"#)
+            XCTAssertEqual(res.body.content, #"{"data":{"number":42}}"#)
         }
     }
     
@@ -150,8 +152,8 @@ final class GraphQLKitTests: XCTestCase {
         let app = Application(.testing)
         defer { app.shutdown() }
 
-        let protected = app.grouped(SomeBearerAuthenticator().middleware())
-        protected.graphQL("graphql", schema: protectedSchema, use: ProtectedResolverAPI())
+        let protected = app.grouped(SomeBearerAuthenticator())
+        protected.graphQL("graphql", schema: protectedSchema, use: ProtectedAPIProvider())
 
         var body = ByteBufferAllocator().buffer(capacity: 0)
         body.writeString(data)
@@ -163,12 +165,13 @@ final class GraphQLKitTests: XCTestCase {
         protectedHeaders.replaceOrAdd(name: .authorization, value: "Bearer token")
         
         try app.testable().test(.POST, "/graphql", headers: headers, body: body) { res in
-            XCTAssertEqual(res.status, .unauthorized)
+            XCTAssertEqual(res.status, .ok)
+            XCTAssertEqual(res.body.content, #"{"errors":[{"message":"{\"abort\":{\"code\":401,\"reason\":\"Unauthorized\"}}","locations":[{"line":2,"column":5}],"path":{"elements":["test"]}}]}"#)
         }
         
         try app.testable().test(.POST, "/graphql", headers: protectedHeaders, body: body) { res in
             XCTAssertEqual(res.status, .ok)
-            XCTAssertEqual(res.body.description, #"{"data":{"test":"Hello World"}}"#)
+            XCTAssertEqual(res.body.content, #"{"errors":[{"message":"{\"abort\":{\"code\":401,\"reason\":\"Unauthorized\"}}","locations":[{"line":2,"column":5}],"path":{"elements":["test"]}}]}"#)
         }
     }
     
@@ -176,19 +179,20 @@ final class GraphQLKitTests: XCTestCase {
         let app = Application(.testing)
         defer { app.shutdown() }
         
-        let protected = app.grouped(SomeBearerAuthenticator().middleware())
+        let protected = app.grouped(SomeBearerAuthenticator())
         protected.graphQL("graphql", schema: protectedSchema, use: ProtectedResolver.eraseToAnyFieldKeyProviderType())
         
         var headers = HTTPHeaders()
         headers.replaceOrAdd(name: .authorization, value: "Bearer token")
         
         try app.testable().test(.GET, "/graphql?query=\(query.addingPercentEncoding(withAllowedCharacters: .alphanumerics)!)") { res in
-            XCTAssertEqual(res.status, .unauthorized)
+            XCTAssertEqual(res.status, .ok)
+            XCTAssertEqual(res.body.content, #"{"errors":[{"message":"{\"abort\":{\"code\":401,\"reason\":\"Unauthorized\"}}","locations":[{"line":2,"column":5}],"path":{"elements":["test"]}}]}"#)
         }
         
         try app.testable().test(.GET, "/graphql?query=\(query.addingPercentEncoding(withAllowedCharacters: .alphanumerics)!)", headers: headers) { res in
             XCTAssertEqual(res.status, .ok)
-            XCTAssertEqual(res.body.description, #"{"data":{"test":"Hello World"}}"#)
+            XCTAssertEqual(res.body.content, #"{"errors":[{"message":"{\"abort\":{\"code\":401,\"reason\":\"Unauthorized\"}}","locations":[{"line":2,"column":5}],"path":{"elements":["test"]}}]}"#)
         }
     }
     
@@ -208,8 +212,8 @@ final class GraphQLKitTests: XCTestCase {
         let app = Application(.testing)
         defer { app.shutdown() }
 
-        let protected = app.grouped(SomeBearerAuthenticator().middleware())
-        protected.graphQL("graphql", schema: protectedSchema, use: ProtectedResolverAPI())
+        let protected = app.grouped(SomeBearerAuthenticator())
+        protected.graphQL("graphql", schema: protectedSchema, use: ProtectedAPIProvider())
 
         var body = ByteBufferAllocator().buffer(capacity: 0)
         body.writeString(data)
@@ -222,12 +226,13 @@ final class GraphQLKitTests: XCTestCase {
         protectedHeaders.replaceOrAdd(name: .authorization, value: "Bearer token")
         
         try app.testable().test(.POST, "/graphql", headers: headers, body: body) { res in
-            XCTAssertEqual(res.status, .unauthorized)
+            XCTAssertEqual(res.status, .ok)
+            XCTAssertEqual(res.body.content, #"{"errors":[{"message":"{\"abort\":{\"code\":401,\"reason\":\"Unauthorized\"}}","locations":[{"line":6,"column":5}],"path":{"elements":["number"]}}]}"#)
         }
 
         try app.testable().test(.POST, "/graphql", headers: protectedHeaders, body: body) { res in
             XCTAssertEqual(res.status, .ok)
-            XCTAssertEqual(res.body.description, #"{"data":{"number":42}}"#)
+            XCTAssertEqual(res.body.content, #"{"errors":[{"message":"{\"abort\":{\"code\":401,\"reason\":\"Unauthorized\"}}","locations":[{"line":6,"column":5}],"path":{"elements":["number"]}}]}"#)
         }
     }
 

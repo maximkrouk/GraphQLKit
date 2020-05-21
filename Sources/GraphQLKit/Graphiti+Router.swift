@@ -6,15 +6,15 @@ extension RoutesBuilder {
     @discardableResult
     public func graphQL<Resolver: FieldKeyProvider>(
         _ path: PathComponent...,
-        schema: Schema<Resolver, Request>,
+        schema: QLSchema<Resolver, Request>,
         use resolver: Resolver
     ) -> [Route] {
         [
             self.post(path) { (request) -> EventLoopFuture<Response> in
-            try request.resolveByBody(graphQLSchema: schema, with: resolver)
-                .map({ (responseContent) in
-                    Response(body: responseContent, mediaType: .json)
-                })
+                try request.resolveByBody(graphQLSchema: schema, with: resolver)
+                    .map({ (responseContent) in
+                        Response(body: responseContent, mediaType: .json)
+                    })
             },
             self.get(path) { (request) -> EventLoopFuture<Response> in
                 try request.resolveByQueryParameters(graphQLSchema: schema, with: resolver)

@@ -7,3 +7,11 @@ extension GraphQLError: AbortError {
     public var identifier: String { "GraphQLError" }
     public var reason: String { message }
 }
+
+extension Abort: SelfEncodableError {
+    public func encode() -> String {
+        """
+        {"abort":{"code":\(status.code),"reason":\"\(reason)\"}}
+        """
+    }
+}
