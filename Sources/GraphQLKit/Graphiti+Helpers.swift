@@ -16,7 +16,7 @@ public struct QLResolverProvider<Wrapped: FieldKeyProvider>: FieldKeyProvider {
 }
 
 extension FieldKeyProvider {
-    public static func containerize() -> QLResolverProvider<Self> { .init() }
+    public static func wrap() -> QLResolverProvider<Self> { .init() }
 }
 
 extension Graphiti.QLField {

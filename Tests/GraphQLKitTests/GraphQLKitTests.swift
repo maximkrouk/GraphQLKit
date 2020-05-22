@@ -180,7 +180,7 @@ final class GraphQLKitTests: XCTestCase {
         defer { app.shutdown() }
         
         let protected = app.grouped(SomeBearerAuthenticator())
-        protected.graphQL("graphql", schema: protectedSchema, use: ProtectedResolver.eraseToAnyFieldKeyProviderType())
+        protected.graphQL("graphql", schema: protectedSchema, use: ProtectedResolver.wrap())
         
         var headers = HTTPHeaders()
         headers.replaceOrAdd(name: .authorization, value: "Bearer token")

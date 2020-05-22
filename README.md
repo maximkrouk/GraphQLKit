@@ -22,7 +22,7 @@ Add the package to Your SwiftPM package dependencies:
 ```swift
 .package(
     url: "https://github.com/maximkrouk/GraphQLKit.git", 
-    from: "1.0.0-beta.1.0"
+    from: "1.0.0-beta.2.0"
 )
 ```
 
