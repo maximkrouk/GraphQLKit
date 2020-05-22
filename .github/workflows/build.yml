@@ -1,0 +1,52 @@
+name: Build
+
+on:
+    push:
+      branches: [ master ]
+    pull_request:
+      branches: [ master ]
+      
+jobs:
+  darwin:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: MacOS.Darwin.Build
+      run: swift build -v -c release
+    - name: MacOS.Darwin.Test
+      run: swift test -v
+
+  xenial:
+    container:
+      image: swift:xenial
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Ubuntu.Xenial.Fetch
+      run: apt-get -qq update && apt-get -q -y install libpq-dev libssl-dev zlib1g-dev
+    - name: Ubuntu.Xenial.Test
+      run: swift test --enable-test-discovery
+
+  bionic:
+    container:
+      image: swift:bionic
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Ubuntu.Bionic.Fetch
+      run: apt-get -qq update && apt-get -q -y install libpq-dev libssl-dev zlib1g-dev
+    - name: Ubuntu.Bionic.Test
+      run: swift test --enable-test-discovery
+
+  bionic-release:
+    container:
+      image: swift:bionic
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Ubuntu.Bionic.Release.Fetch
+      run: apt-get -qq update && apt-get -q -y install libpq-dev libssl-dev zlib1g-dev
+    - name: Ubuntu.Bionic.Release.Build
+      run: swift build -c release
+    - name: Ubuntu.Bionic.Release.Test
+      run: swift test --enable-test-discovery

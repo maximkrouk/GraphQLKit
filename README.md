@@ -10,8 +10,8 @@ Easy setup of a GraphQL server with Vapor. It uses the GraphQL implementation of
 - [x] Accept JSON in the body of a POST request as the GraphQL query
 - [x] POST and GET support
 - [x] Static controllers support
-- [ ] A nice example _(even with a bit of frontend JS_ 😉_)_  _`in progress`_
-- [ ] Accept `application/graphql` content type requests
+- [ ] A nice example _(even with a bit of frontend JS_ 😉 _)_  _`in progress`_
+- [ ] Accept `application/graphql` content type requests
 - [ ] Downloadable schema file
 - [ ] Multi-Resolver support
 
